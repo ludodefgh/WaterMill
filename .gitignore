@@ -1,4 +1,7 @@
-.pio/
-.vscode/
 build/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+managed_components/
+main/config.h
 *.DS_Store

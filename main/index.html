@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steam Pump Control Unit Mk.I</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  min-height:100vh;
+  background:#080402;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% 0%,#1f0e04 0%,transparent 70%),
+    repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'IM Fell English',Georgia,serif;
+  color:#d4a96a;overflow:hidden;
+}
+
+/* Particles */
+.steam{position:fixed;inset:0;pointer-events:none;z-index:0}
+.p{position:absolute;border-radius:50%;
+  background:radial-gradient(circle,rgba(184,115,51,.35),transparent);
+  animation:rise linear infinite}
+@keyframes rise{
+  0%{transform:translateY(100vh) scale(0);opacity:0}
+  15%{opacity:.8}
+  100%{transform:translateY(-15vh) scale(4);opacity:0}
+}
+
+/* Panel */
+.panel{
+  position:relative;z-index:1;
+  background:linear-gradient(160deg,#1a0c05 0%,#0f0703 55%,#1a0c05 100%);
+  border:2px solid #6a3f18;border-radius:4px;
+  width:min(500px,95vw);
+  box-shadow:
+    0 0 0 1px #2d1500,
+    0 0 50px rgba(184,115,51,.12),
+    0 24px 60px rgba(0,0,0,.85),
+    inset 0 1px 0 rgba(255,195,80,.08);
+  overflow:hidden;
+}
+
+/* Header */
+.hdr{
+  background:linear-gradient(180deg,#3d2200 0%,#221000 100%);
+  border-bottom:2px solid #6a3f18;
+  padding:22px 36px 18px;position:relative;overflow:hidden;
+}
+.hdr::before{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent,transparent 24px,
+    rgba(255,180,50,.03) 24px,rgba(255,180,50,.03) 25px);
+}
+.rivet{
+  position:absolute;width:10px;height:10px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#d4a418,#6a4000);
+  box-shadow:0 0 4px rgba(0,0,0,.9),inset 0 1px 1px rgba(255,215,80,.35);
+}
+.r1{top:9px;left:11px}.r2{top:9px;right:11px}
+.r3{bottom:9px;left:11px}.r4{bottom:9px;right:11px}
+
+.title{text-align:center;position:relative;z-index:1}
+.title h1{
+  font-family:'Cinzel Decorative',serif;font-weight:700;
+  font-size:clamp(13px,3.2vw,19px);letter-spacing:2px;line-height:1.35;
+  color:#d4a418;
+  text-shadow:0 0 24px rgba(212,164,24,.55),0 1px 3px rgba(0,0,0,.9);
+}
+.title .sub{
+  font-family:'IM Fell English',serif;font-style:italic;
+  font-size:10px;letter-spacing:5px;color:#6a4a20;margin-top:5px;
+}
+.hgear{position:absolute;top:50%;transform:translateY(-50%);opacity:.22}
+.hgear.l{left:4px}.hgear.r{right:4px;transform:translateY(-50%) scaleX(-1)}
+
+/* Body */
+.body{padding:26px 30px 30px}
+
+/* Status */
+.sbar{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(0,0,0,.45);border:1px solid #2d1500;border-radius:3px;
+  padding:8px 14px;margin-bottom:26px;
+  font-size:10px;letter-spacing:2px;color:#5a3a18;
+}
+.dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#1a0800;box-shadow:0 0 5px currentColor;
+  transition:background .5s,box-shadow .5s;flex-shrink:0;
+}
+.dot.active{background:#d4a418;color:#d4a418}
+.dot.running{background:#4db830;color:#4db830}
+#stxt{flex:1}
+
+/* Section label */
+.lbl{
+  font-family:'Cinzel Decorative',serif;font-size:8px;
+  letter-spacing:3.5px;color:#5a3318;text-transform:uppercase;
+  margin-bottom:12px;
+}
+
+/* Power button */
+.psec{text-align:center;margin-bottom:8px}
+.pbtn{
+  position:relative;width:118px;height:118px;border-radius:50%;
+  border:2.5px solid #3d2200;
+  background:radial-gradient(circle at 40% 35%,#221000,#0a0502);
+  cursor:pointer;outline:none;
+  box-shadow:
+    0 0 0 5px #0f0602,
+    0 0 0 6px #2d1500,
+    0 6px 20px rgba(0,0,0,.85),
+    inset 0 1px 0 rgba(255,180,50,.08);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  transition:border-color .3s,box-shadow .3s,transform .15s;
+  margin:0 auto;
+}
+.pbtn:hover{border-color:#6a3f18;transform:scale(1.025)}
+.pbtn:active{transform:scale(.97)}
+.pbtn.on{
+  border-color:#d4a418;
+  background:radial-gradient(circle at 40% 35%,#3d2200,#1a0c00);
+  box-shadow:
+    0 0 0 5px #0f0602,
+    0 0 0 6px #5a3800,
+    0 0 35px rgba(212,164,24,.28),
+    0 6px 20px rgba(0,0,0,.85),
+    inset 0 1px 0 rgba(255,215,80,.15);
+}
+.pico{width:38px;height:38px;opacity:.3;transition:opacity .3s,filter .3s}
+.pbtn.on .pico{opacity:1;filter:drop-shadow(0 0 10px #d4a418)}
+.ptxt{
+  font-family:'Cinzel Decorative',serif;font-size:8px;letter-spacing:2px;
+  color:#3d2000;transition:color .3s;
+}
+.pbtn.on .ptxt{color:#d4a418}
+
+/* Divider */
+.div{
+  height:1px;margin:22px 0;position:relative;
+  background:linear-gradient(90deg,transparent,#2d1500,#6a3f18,#2d1500,transparent);
+}
+.div::before{
+  content:'⚙';position:absolute;left:50%;top:50%;
+  transform:translate(-50%,-50%);
+  background:#0f0703;color:#2d1500;padding:0 10px;font-size:13px;
+}
+
+/* PWM */
+.pwm-num{
+  display:flex;align-items:baseline;justify-content:center;gap:3px;
+  margin-bottom:14px;
+}
+.pval{
+  font-family:'Cinzel Decorative',serif;font-size:52px;line-height:1;
+  color:#d4a418;text-shadow:0 0 22px rgba(212,164,24,.38);
+  transition:color .25s,text-shadow .25s;min-width:3ch;text-align:right;
+}
+.pval.z{color:#2d1500;text-shadow:none}
+.punit{font-family:'Cinzel Decorative',serif;font-size:18px;color:#6a4820;padding-bottom:8px}
+.psub{font-size:10px;color:#4a2e10;letter-spacing:2px;text-align:center;margin-bottom:14px}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:5px;border-radius:3px;outline:none;cursor:pointer;
+  background:linear-gradient(90deg,#d4a418 var(--v,0%),#1a0c05 var(--v,0%));
+  border:1px solid #2d1500;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:radial-gradient(circle at 38% 33%,#d4a418,#6a4000);
+  border:2px solid #3d2200;cursor:pointer;
+  box-shadow:0 0 10px rgba(212,164,24,.35),0 2px 8px rgba(0,0,0,.8);
+}
+input[type=range]::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;border:2px solid #3d2200;
+  background:radial-gradient(circle at 38% 33%,#d4a418,#6a4000);cursor:pointer;
+  box-shadow:0 0 10px rgba(212,164,24,.35),0 2px 8px rgba(0,0,0,.8);
+}
+.marks{
+  display:flex;justify-content:space-between;
+  padding:5px 1px 0;font-size:9px;color:#2d1500;letter-spacing:1px;
+}
+
+/* Footer */
+.ftr{
+  background:#060301;border-top:1px solid #140a03;
+  padding:9px 30px;display:flex;align-items:center;justify-content:space-between;
+  font-size:8px;letter-spacing:2.5px;color:#251200;
+}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:22px;left:50%;
+  transform:translateX(-50%) translateY(70px);opacity:0;
+  background:#1a0c05;border:1px solid #6a3f18;
+  color:#d4a96a;padding:10px 22px;border-radius:3px;
+  font-size:10px;letter-spacing:2px;
+  transition:transform .3s,opacity .3s;z-index:99;
+}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* LED slider — amber tint */
+.led-sec input[type=range]{
+  background:linear-gradient(90deg,#e8a020 var(--lv,0%),#1a0c05 var(--lv,0%));
+}
+.led-sec input[type=range]::-webkit-slider-thumb{
+  background:radial-gradient(circle at 38% 33%,#f0c040,#8a5a00);
+  box-shadow:0 0 10px rgba(240,192,64,.4),0 2px 8px rgba(0,0,0,.8);
+}
+.led-sec input[type=range]::-moz-range-thumb{
+  background:radial-gradient(circle at 38% 33%,#f0c040,#8a5a00);
+  box-shadow:0 0 10px rgba(240,192,64,.4),0 2px 8px rgba(0,0,0,.8);
+}
+.lval{
+  font-family:'Cinzel Decorative',serif;font-size:52px;line-height:1;
+  color:#e8a020;text-shadow:0 0 22px rgba(232,160,32,.4);
+  transition:color .25s,text-shadow .25s;min-width:3ch;text-align:right;
+}
+.lval.z{color:#2d1500;text-shadow:none}
+
+/* OTA section */
+.ota-zone{
+  border:1px dashed #3d2200;border-radius:3px;
+  padding:16px;text-align:center;cursor:pointer;
+  transition:border-color .3s;position:relative;
+}
+.ota-zone:hover,.ota-zone.drag{border-color:#6a3f18}
+.ota-zone input[type=file]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;
+}
+.ota-fname{
+  font-size:11px;letter-spacing:1px;color:#5a3a18;
+  margin-top:6px;min-height:16px;word-break:break-all;
+}
+.ota-fname.ready{color:#d4a418}
+.ota-progress{
+  height:6px;border-radius:3px;border:1px solid #2d1500;
+  background:#0f0703;margin:14px 0 10px;overflow:hidden;
+  display:none;
+}
+.ota-bar{
+  height:100%;width:0%;border-radius:3px;
+  background:linear-gradient(90deg,#8b0000,#d42020);
+  transition:width .2s;
+}
+.ota-btn{
+  width:100%;padding:10px;margin-top:10px;
+  font-family:'Cinzel Decorative',serif;font-size:9px;letter-spacing:3px;
+  background:linear-gradient(180deg,#2d0000,#1a0000);
+  border:1px solid #5a0000;border-radius:3px;color:#8b0000;
+  cursor:pointer;transition:all .3s;outline:none;
+}
+.ota-btn:hover:not(:disabled){border-color:#aa0000;color:#d42020;
+  box-shadow:0 0 12px rgba(180,0,0,.3)}
+.ota-btn.ready{border-color:#8b0000;color:#cc2020}
+.ota-btn:disabled{opacity:.35;cursor:not-allowed}
+.ota-status{font-size:10px;letter-spacing:1px;color:#5a2020;margin-top:8px;min-height:14px}
+
+/* Corner gear decoration */
+.cgear{position:absolute;opacity:.05;pointer-events:none}
+.cgear.tl{top:-8px;left:-8px}
+.cgear.br{bottom:-8px;right:-8px}
+.gspin{animation:gspin linear 22s infinite;transform-origin:50% 50%}
+.grev{animation:gspin linear 16s infinite reverse;transform-origin:50% 50%}
+@keyframes gspin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="steam" id="stm"></div>
+
+<div class="panel">
+  <!-- Corner decorative gears -->
+  <svg class="cgear tl" width="90" height="90" viewBox="0 0 100 100">
+    <g class="gspin" style="transform-origin:50px 50px">
+      <circle cx="50" cy="50" r="22" fill="none" stroke="#d4a418" stroke-width="5"/>
+      <circle cx="50" cy="50" r="10" fill="none" stroke="#d4a418" stroke-width="2.5"/>
+      <rect x="45" y="16" width="10" height="16" rx="2" fill="#d4a418"/>
+      <rect x="45" y="68" width="10" height="16" rx="2" fill="#d4a418"/>
+      <rect x="16" y="45" width="16" height="10" rx="2" fill="#d4a418"/>
+      <rect x="68" y="45" width="16" height="10" rx="2" fill="#d4a418"/>
+      <rect x="24" y="20" width="10" height="16" rx="2" fill="#d4a418" transform="rotate(45,29,28)"/>
+      <rect x="66" y="20" width="10" height="16" rx="2" fill="#d4a418" transform="rotate(-45,71,28)"/>
+      <rect x="24" y="64" width="10" height="16" rx="2" fill="#d4a418" transform="rotate(-45,29,72)"/>
+      <rect x="66" y="64" width="10" height="16" rx="2" fill="#d4a418" transform="rotate(45,71,72)"/>
+    </g>
+  </svg>
+  <svg class="cgear br" width="70" height="70" viewBox="0 0 80 80">
+    <g class="grev" style="transform-origin:40px 40px">
+      <circle cx="40" cy="40" r="16" fill="none" stroke="#d4a418" stroke-width="4"/>
+      <circle cx="40" cy="40" r="7"  fill="none" stroke="#d4a418" stroke-width="2"/>
+      <rect x="36" y="13" width="8" height="12" rx="2" fill="#d4a418"/>
+      <rect x="36" y="55" width="8" height="12" rx="2" fill="#d4a418"/>
+      <rect x="13" y="36" width="12" height="8" rx="2" fill="#d4a418"/>
+      <rect x="55" y="36" width="12" height="8" rx="2" fill="#d4a418"/>
+    </g>
+  </svg>
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="rivet r1"></div><div class="rivet r2"></div>
+    <div class="rivet r3"></div><div class="rivet r4"></div>
+    <svg class="hgear l" width="44" height="44" viewBox="0 0 60 60">
+      <g class="gspin" style="transform-origin:30px 30px">
+        <circle cx="30" cy="30" r="13" fill="none" stroke="#d4a418" stroke-width="2.5"/>
+        <rect x="27" y="7"  width="6" height="9" rx="1.5" fill="#d4a418"/>
+        <rect x="27" y="44" width="6" height="9" rx="1.5" fill="#d4a418"/>
+        <rect x="7"  y="27" width="9" height="6" rx="1.5" fill="#d4a418"/>
+        <rect x="44" y="27" width="9" height="6" rx="1.5" fill="#d4a418"/>
+      </g>
+    </svg>
+    <div class="title">
+      <h1>STEAM PUMP<br>CONTROL UNIT</h1>
+      <div class="sub">— Mk. I &nbsp;·&nbsp; Est. MMXXVI —</div>
+    </div>
+    <svg class="hgear r" width="44" height="44" viewBox="0 0 60 60">
+      <g class="grev" style="transform-origin:30px 30px">
+        <circle cx="30" cy="30" r="13" fill="none" stroke="#d4a418" stroke-width="2.5"/>
+        <rect x="27" y="7"  width="6" height="9" rx="1.5" fill="#d4a418"/>
+        <rect x="27" y="44" width="6" height="9" rx="1.5" fill="#d4a418"/>
+        <rect x="7"  y="27" width="9" height="6" rx="1.5" fill="#d4a418"/>
+        <rect x="44" y="27" width="9" height="6" rx="1.5" fill="#d4a418"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Status bar -->
+    <div class="sbar">
+      <div class="dot" id="dot"></div>
+      <span id="stxt">INITIALISATION...</span>
+    </div>
+
+    <!-- Power button -->
+    <div class="psec">
+      <div class="lbl">Vanne Principale</div>
+      <button class="pbtn" id="pbtn" onclick="togglePump()">
+        <svg class="pico" viewBox="0 0 24 24" fill="none"
+             stroke="#d4a418" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2v5"/>
+          <path d="M5.64 5.64 9.17 9.17"/>
+          <path d="M2 12h5"/>
+          <path d="M5.64 18.36l3.53-3.53"/>
+          <path d="M12 22v-5"/>
+          <path d="M18.36 18.36l-3.53-3.53"/>
+          <path d="M22 12h-5"/>
+          <path d="M18.36 5.64l-3.53 3.53"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <span class="ptxt" id="ptxt">FERMÉE</span>
+      </button>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Pump PWM -->
+    <div>
+      <div class="lbl">Régulateur de Débit</div>
+      <div class="pwm-num">
+        <div class="pval z" id="pval">0</div>
+        <div class="punit">%</div>
+      </div>
+      <div class="psub">PRESSION VAPEUR</div>
+      <input type="range" id="sl" min="0" max="100" value="0"
+             oninput="onSlide(this.value)" onchange="sendPump()">
+      <div class="marks">
+        <span>VIDE</span><span>25</span><span>50</span><span>75</span><span>MAX</span>
+      </div>
+    </div>
+
+    <div class="div" style="margin-top:26px"></div>
+
+    <!-- LED dimmer -->
+    <div class="led-sec">
+      <div class="lbl">Luminaire à Vapeur</div>
+      <div class="pwm-num">
+        <div class="lval z" id="lval">0</div>
+        <div class="punit" style="color:#7a5a28">%</div>
+      </div>
+      <div class="psub">INTENSITÉ LUMINEUSE</div>
+      <input type="range" id="lsl" min="0" max="100" value="0"
+             oninput="onLedSlide(this.value)" onchange="sendLed()">
+      <div class="marks">
+        <span>ÉTEINT</span><span>25</span><span>50</span><span>75</span><span>PLEIN</span>
+      </div>
+    </div>
+  </div>
+
+    <div class="div" style="margin-top:26px"></div>
+
+    <!-- OTA -->
+    <div>
+      <div class="lbl">Mise à Jour du Firmware</div>
+      <div class="ota-zone" id="otaZone">
+        <input type="file" id="otaFile" accept=".bin" onchange="onFileSelect(this)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+             stroke="#3d2200" stroke-width="1.5" stroke-linecap="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <div style="font-size:10px;letter-spacing:2px;color:#3d2200;margin-top:6px">
+          SÉLECTIONNER FIRMWARE.BIN
+        </div>
+        <div class="ota-fname" id="otaFname">—</div>
+      </div>
+      <div class="ota-progress" id="otaProgress">
+        <div class="ota-bar" id="otaBar"></div>
+      </div>
+      <div class="ota-status" id="otaStatus"></div>
+      <button class="ota-btn" id="otaBtn" onclick="startOTA()" disabled>
+        ⚡ TÉLÉGRAPHIER LE NOUVEAU FIRMWARE
+      </button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="ftr">
+    <span>⚙ SYSTÈME VAPEUR</span>
+    <span id="fip">—</span>
+    <span>⚙ MK.I</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Steam particles
+!function(){
+  const c=document.getElementById('stm');
+  for(let i=0;i<18;i++){
+    const p=document.createElement('div');p.className='p';
+    const s=2+Math.random()*7;
+    p.style.cssText=`left:${Math.random()*100}%;`+
+      `width:${s}px;height:${s}px;`+
+      `animation-duration:${9+Math.random()*14}s;`+
+      `animation-delay:${-Math.random()*25}s`;
+    c.appendChild(p);
+  }
+}();
+
+let on=false,pwr=0,lpwr=0;
+let pumpBusy=false,ledBusy=false,pumpTid=null,ledTid=null;
+
+function toast(m){
+  const t=document.getElementById('toast');
+  t.textContent=m;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function uiPump(){
+  const b=document.getElementById('pbtn'),d=document.getElementById('dot');
+  b.classList.toggle('on',on);
+  document.getElementById('ptxt').textContent=on?'OUVERTE':'FERMÉE';
+  d.className='dot'+(on?' running':' active');
+  document.getElementById('stxt').textContent=on
+    ?`POMPE EN MARCHE — ${pwr}%`
+    :'SYSTÈME EN VEILLE';
+}
+
+function onSlide(v){
+  v=+v;pwr=v;
+  const el=document.getElementById('pval');
+  el.textContent=v;el.className='pval'+(v===0?' z':'');
+  document.getElementById('sl').style.setProperty('--v',v+'%');
+  if(on)uiPump();
+}
+
+function onLedSlide(v){
+  v=+v;lpwr=v;
+  const el=document.getElementById('lval');
+  el.textContent=v;el.className='lval'+(v===0?' z':'');
+  document.getElementById('lsl').style.setProperty('--lv',v+'%');
+}
+
+function sendPump(){
+  clearTimeout(pumpTid);
+  pumpTid=setTimeout(()=>{
+    if(pumpBusy)return;pumpBusy=true;
+    fetch('/api/pump',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({on,power:pwr})
+    }).then(r=>r.json()).then(d=>{
+      on=d.on;pwr=d.power;
+      document.getElementById('sl').value=pwr;
+      onSlide(pwr);uiPump();
+    }).catch(()=>toast('⚠ ERREUR POMPE'))
+    .finally(()=>pumpBusy=false);
+  },150);
+}
+
+function sendLed(){
+  clearTimeout(ledTid);
+  ledTid=setTimeout(()=>{
+    if(ledBusy)return;ledBusy=true;
+    fetch('/api/led',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({power:lpwr})
+    }).then(r=>r.json()).then(d=>{
+      lpwr=d.led_power;
+      document.getElementById('lsl').value=lpwr;
+      onLedSlide(lpwr);
+    }).catch(()=>toast('⚠ ERREUR LUMINAIRE'))
+    .finally(()=>ledBusy=false);
+  },150);
+}
+
+function togglePump(){
+  on=!on;
+  if(on&&pwr===0){pwr=100;document.getElementById('sl').value=100;onSlide(100);}
+  sendPump();uiPump();
+}
+
+// OTA
+let otaFile=null;
+
+function onFileSelect(input){
+  otaFile=input.files[0]||null;
+  const fn=document.getElementById('otaFname');
+  const btn=document.getElementById('otaBtn');
+  if(otaFile){
+    fn.textContent=`${otaFile.name}  (${(otaFile.size/1024).toFixed(0)} KB)`;
+    fn.className='ota-fname ready';
+    btn.disabled=false;btn.className='ota-btn ready';
+  } else {
+    fn.textContent='—';fn.className='ota-fname';
+    btn.disabled=true;btn.className='ota-btn';
+  }
+}
+
+function startOTA(){
+  if(!otaFile)return;
+  const btn=document.getElementById('otaBtn');
+  const bar=document.getElementById('otaBar');
+  const prog=document.getElementById('otaProgress');
+  const status=document.getElementById('otaStatus');
+  btn.disabled=true;prog.style.display='block';
+  status.textContent='TRANSMISSION EN COURS...';
+
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/api/ota');
+  xhr.setRequestHeader('Content-Type','application/octet-stream');
+
+  xhr.upload.onprogress=function(e){
+    if(!e.lengthComputable)return;
+    const pct=Math.round(e.loaded/e.total*100);
+    bar.style.width=pct+'%';
+    status.textContent=`CHARGEMENT — ${pct}% (${(e.loaded/1024).toFixed(0)}/${(e.total/1024).toFixed(0)} KB)`;
+  };
+
+  xhr.onload=function(){
+    if(xhr.status===200){
+      bar.style.width='100%';
+      status.textContent='✓ FIRMWARE ACCEPTÉ — REDÉMARRAGE EN COURS...';
+      setTimeout(()=>location.reload(),4000);
+    } else {
+      status.textContent=`⚠ ERREUR ${xhr.status}`;
+      btn.disabled=false;
+    }
+  };
+
+  xhr.onerror=function(){
+    /* connexion coupée = l'ESP redémarre, c'est normal */
+    bar.style.width='100%';
+    status.textContent='✓ REDÉMARRAGE EN COURS...';
+    setTimeout(()=>location.reload(),4000);
+  };
+
+  xhr.send(otaFile);
+}
+
+// drag-and-drop on zone
+document.getElementById('otaZone').addEventListener('dragover',e=>{
+  e.preventDefault();document.getElementById('otaZone').classList.add('drag');
+});
+document.getElementById('otaZone').addEventListener('dragleave',()=>{
+  document.getElementById('otaZone').classList.remove('drag');
+});
+document.getElementById('otaZone').addEventListener('drop',e=>{
+  e.preventDefault();document.getElementById('otaZone').classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.name.endsWith('.bin')){
+    otaFile=f;
+    const fi=document.getElementById('otaFile');
+    const dt=new DataTransfer();dt.items.add(f);fi.files=dt.files;
+    onFileSelect(fi);
+  }
+});
+
+// Initial state
+fetch('/api/state')
+  .then(r=>r.json())
+  .then(d=>{
+    on=d.on;pwr=d.power;lpwr=d.led_power||0;
+    document.getElementById('sl').value=pwr;  onSlide(pwr);
+    document.getElementById('lsl').value=lpwr; onLedSlide(lpwr);
+    if(d.ip)document.getElementById('fip').textContent=d.ip;
+    document.getElementById('dot').className='dot active';
+    uiPump();
+  })
+  .catch(()=>{
+    document.getElementById('stxt').textContent='HORS LIGNE';
+  });
+</script>
+</body>
+</html>
