@@ -4,12 +4,14 @@ idf_component_register(
         "pump.c"
         "led.c"
         "ota.c"
+        "touch.c"
         "wifi_manager.c"
         "webserver.c"
     INCLUDE_DIRS "."
     EMBED_TXTFILES "index.html"
     REQUIRES
         esp_driver_ledc
+        esp_driver_gpio
         esp_wifi
         esp_event
         esp_netif

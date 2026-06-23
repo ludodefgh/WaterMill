@@ -5,7 +5,12 @@
 #include "wifi_manager.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
+#include "esp_system.h"
 #include "cJSON.h"
+#include "touch.h"
+
+#define FW_VERSION "v6-stack4k"
 
 static const char *TAG = "web";
 
@@ -24,6 +29,7 @@ static esp_err_t handle_state(httpd_req_t *req) {
     cJSON_AddNumberToObject(j, "power",     pump_get_power());
     cJSON_AddNumberToObject(j, "led_power", led_get_power());
     cJSON_AddStringToObject(j, "ip",        wifi_manager_get_ip());
+    cJSON_AddStringToObject(j, "fw",        FW_VERSION);
     char *s = cJSON_PrintUnformatted(j);
     httpd_resp_set_type(req, "application/json");
     httpd_resp_sendstr(req, s);
@@ -85,6 +91,22 @@ static esp_err_t handle_led(httpd_req_t *req) {
     return ESP_OK;
 }
 
+static esp_err_t handle_debug(httpd_req_t *req) {
+    cJSON *j = cJSON_CreateObject();
+    cJSON_AddNumberToObject(j, "gpio4",         gpio_get_level(GPIO_NUM_4));
+    cJSON_AddStringToObject(j, "fw",            FW_VERSION);
+    cJSON_AddNumberToObject(j, "reset_reason",  (int)esp_reset_reason());
+    if (g_touch_task_handle)
+        cJSON_AddNumberToObject(j, "touch_stack_hwm",
+                                (int)uxTaskGetStackHighWaterMark(g_touch_task_handle));
+    char *s = cJSON_PrintUnformatted(j);
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_sendstr(req, s);
+    free(s);
+    cJSON_Delete(j);
+    return ESP_OK;
+}
+
 void webserver_start(void) {
     httpd_config_t cfg     = HTTPD_DEFAULT_CONFIG();
     cfg.stack_size         = 8192;
@@ -104,7 +126,8 @@ void webserver_start(void) {
         { .uri="/api/pump",  .method=HTTP_POST, .handler=handle_pump  },
         { .uri="/api/led",   .method=HTTP_POST, .handler=handle_led   },
         { .uri="/api/ota",   .method=HTTP_POST, .handler=handle_ota   },
+        { .uri="/api/debug", .method=HTTP_GET,  .handler=handle_debug },
     };
-    for (int i = 0; i < 5; i++) httpd_register_uri_handler(srv, &uris[i]);
+    for (int i = 0; i < 6; i++) httpd_register_uri_handler(srv, &uris[i]);
     ESP_LOGI(TAG, "ready on port %d", cfg.server_port);
 }
