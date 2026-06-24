@@ -5,6 +5,7 @@ idf_component_register(
         "led.c"
         "ota.c"
         "touch.c"
+        "logger.c"
         "wifi_manager.c"
         "webserver.c"
     INCLUDE_DIRS "."
