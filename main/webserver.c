@@ -11,7 +11,7 @@
 #include "touch.h"
 #include "logger.h"
 
-#define FW_VERSION "v8-logger"
+#define FW_VERSION "v9-crashlog"
 
 static const char *TAG = "web";
 
@@ -93,13 +93,34 @@ static esp_err_t handle_led(httpd_req_t *req) {
 }
 
 static esp_err_t handle_logs(httpd_req_t *req) {
-    log_line_t lines[LOGGER_ENTRIES];
+    /* current session */
+    static log_line_t lines[LOGGER_ENTRIES];
     int count = logger_snapshot(lines, LOGGER_ENTRIES);
+
+    /* previous session (potential crash logs) */
+    rtc_log_line_t prev[LOGGER_RTC_ENTRIES];
+    int prev_count = logger_prev_snapshot(prev, LOGGER_RTC_ENTRIES);
+
+    /* reset history */
+    uint8_t hist[LOGGER_HIST_SIZE];
+    int hist_n = 0;
+    logger_reset_history(hist, &hist_n);
+
     cJSON *j = cJSON_CreateObject();
     cJSON_AddNumberToObject(j, "reset_reason", (int)esp_reset_reason());
-    cJSON *arr = cJSON_AddArrayToObject(j, "entries");
+
+    cJSON *harr = cJSON_AddArrayToObject(j, "reset_history");
+    for (int i = 0; i < hist_n; i++)
+        cJSON_AddItemToArray(harr, cJSON_CreateNumber(hist[i]));
+
+    cJSON *earr = cJSON_AddArrayToObject(j, "entries");
     for (int i = 0; i < count; i++)
-        cJSON_AddItemToArray(arr, cJSON_CreateString(lines[i].s));
+        cJSON_AddItemToArray(earr, cJSON_CreateString(lines[i].s));
+
+    cJSON *parr = cJSON_AddArrayToObject(j, "pre_crash");
+    for (int i = 0; i < prev_count; i++)
+        cJSON_AddItemToArray(parr, cJSON_CreateString(prev[i].s));
+
     char *s = cJSON_PrintUnformatted(j);
     httpd_resp_set_type(req, "application/json");
     httpd_resp_sendstr(req, s);

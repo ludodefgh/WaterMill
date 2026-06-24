@@ -266,15 +266,33 @@ input[type=range]::-moz-range-thumb{
 .log-reset{
   display:inline-block;font-size:9px;letter-spacing:1.5px;
   border:1px solid #2a4a18;border-radius:2px;
-  padding:4px 10px;margin-bottom:10px;
+  padding:4px 10px;margin-bottom:8px;
   background:rgba(0,0,0,.4);color:#3d6828;
 }
 .log-reset.err{color:#cc3030;border-color:#4a1010}
+.log-legend{
+  display:flex;gap:12px;margin-bottom:10px;
+  font-size:8px;letter-spacing:1px;flex-wrap:wrap;
+}
+.ll{color:#282838}.ll.E{color:#bb2525}.ll.W{color:#b4880e}.ll.I{color:#3d6828}
+.rst-hist{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.rst-badge{
+  font-size:8px;letter-spacing:.8px;padding:3px 8px;border-radius:2px;
+  background:rgba(0,0,0,.45);border:1px solid #2a4a18;color:#3d6828;
+}
+.rst-badge.err{color:#cc3030;border-color:#4a1010}
+.rst-badge.first{border-style:solid;box-shadow:0 0 6px rgba(212,164,24,.15)}
+.log-legend-rst{
+  font-size:8px;letter-spacing:.8px;color:#3a2a10;
+  margin-bottom:12px;line-height:1.7;
+}
+.log-legend-rst span{display:inline-block;min-width:16px;font-weight:bold}
 .log-list{
   background:rgba(0,0,0,.55);
   border:1px solid #1a0900;border-radius:3px;
-  max-height:160px;overflow-y:auto;
+  max-height:480px;overflow-y:auto;
 }
+.log-list.crash{border-color:#4a1010;max-height:200px}
 .log-list::-webkit-scrollbar{width:4px}
 .log-list::-webkit-scrollbar-track{background:#0a0500}
 .log-list::-webkit-scrollbar-thumb{background:#2d1500;border-radius:2px}
@@ -287,6 +305,10 @@ input[type=range]::-moz-range-thumb{
 }
 .le:last-child{border-bottom:none}
 .le.E{color:#bb2525}.le.W{color:#b4880e}.le.D{color:#282838}.le.V{color:#1e1e28}
+.crash-hdr{
+  font-size:9px;letter-spacing:1.5px;color:#cc3030;
+  margin-top:12px;margin-bottom:6px;
+}
 
 /* Corner gear decoration */
 .cgear{position:absolute;opacity:.05;pointer-events:none}
@@ -451,7 +473,38 @@ input[type=range]::-moz-range-thumb{
     <!-- Logs -->
     <div class="log-sec">
       <div class="lbl">Registre Télégraphique</div>
+
+      <!-- Reset courant -->
       <div id="logReset" class="log-reset">—</div>
+
+      <!-- Légende niveaux -->
+      <div class="log-legend">
+        <span class="ll E">■ E — Erreur</span>
+        <span class="ll W">■ W — Avertissement</span>
+        <span class="ll I">■ I — Info</span>
+        <span class="ll D">■ D — Débogage</span>
+      </div>
+
+      <!-- Historique reboots -->
+      <div class="lbl" style="margin-bottom:8px">Historique des Reboots</div>
+      <div id="rstHist" class="rst-hist"></div>
+      <div class="log-legend-rst">
+        <span>1</span> Démarrage &nbsp;
+        <span>3</span> Redémarrage logiciel &nbsp;
+        <span style="color:#cc3030">4</span> Panique / Exception &nbsp;
+        <span style="color:#cc3030">5</span> Watchdog IT &nbsp;
+        <span style="color:#cc3030">6</span> Watchdog tâche &nbsp;
+        <span style="color:#cc3030">9</span> Sous-tension
+      </div>
+
+      <!-- Logs pré-crash (session précédente, hidden si vide) -->
+      <div id="preCrashSec" style="display:none">
+        <div class="crash-hdr">⚠ LOGS PRÉ-CRASH (session précédente)</div>
+        <div class="log-list crash" id="preCrashList"></div>
+      </div>
+
+      <!-- Logs courants -->
+      <div class="lbl" style="margin-top:12px;margin-bottom:6px">Logs Courants</div>
       <div class="log-list" id="logList"><span class="le I">— initialisation —</span></div>
     </div>
   </div>
@@ -628,22 +681,54 @@ document.getElementById('otaZone').addEventListener('drop',e=>{
 });
 
 // Logs
-const RNAMES={1:'DÉMARRAGE',3:'REDÉMARRAGE LOGICIEL',
-  4:'⚠ PANIQUE',5:'⚠ WATCHDOG IT',6:'⚠ WATCHDOG TÂCHE',9:'⚠ SOUS-TENSION'};
+const RNAMES={
+  1:'DÉMARRAGE',3:'REDÉMARRAGE LOGICIEL',
+  4:'⚠ PANIQUE',5:'⚠ WD-IT',6:'⚠ WD-TÂCHE',9:'⚠ SOUS-TENSION'
+};
+function isBad(rr){return rr===4||rr===5||rr===6||rr===9}
+
+function fillLogList(el,entries){
+  el.innerHTML='';
+  if(!entries||!entries.length){
+    const s=document.createElement('span');
+    s.className='le D';s.textContent='— aucun log —';el.appendChild(s);return;
+  }
+  entries.slice().reverse().forEach(e=>{
+    const s=document.createElement('span');
+    s.className='le '+(e[0]||'I');s.textContent=e;el.appendChild(s);
+  });
+}
+
 function fetchLogs(){
   fetch('/api/logs').then(r=>r.json()).then(d=>{
-    const rr=d.reset_reason,bad=rr===4||rr===5||rr===6||rr===9;
+    /* reset courant */
+    const rr=d.reset_reason;
     const ri=document.getElementById('logReset');
     ri.textContent='RESET: '+(RNAMES[rr]||'CODE '+rr);
-    ri.className='log-reset'+(bad?' err':'');
-    const ul=document.getElementById('logList');
-    ul.innerHTML='';
-    (d.entries||[]).slice().reverse().forEach(e=>{
-      const sp=document.createElement('span');
-      sp.className='le '+(e[0]||'I');
-      sp.textContent=e;
-      ul.appendChild(sp);
-    });
+    ri.className='log-reset'+(isBad(rr)?' err':'');
+
+    /* historique reboots */
+    const hist=d.reset_history||[];
+    const hEl=document.getElementById('rstHist');
+    hEl.innerHTML=hist.map((r,i)=>{
+      const bad=isBad(r);
+      const name=RNAMES[r]||'CODE '+r;
+      return `<span class="rst-badge${bad?' err':''}${i===0?' first':''}" title="${name}">`+
+             `${i===0?'▶ ':''}${r}: ${name.replace('⚠ ','').slice(0,14)}</span>`;
+    }).join('');
+
+    /* logs courants */
+    fillLogList(document.getElementById('logList'),d.entries);
+
+    /* logs pré-crash */
+    const pre=d.pre_crash||[];
+    const sec=document.getElementById('preCrashSec');
+    if(pre.length>0){
+      sec.style.display='';
+      fillLogList(document.getElementById('preCrashList'),pre);
+    } else {
+      sec.style.display='none';
+    }
   }).catch(()=>{});
 }
 fetchLogs();
