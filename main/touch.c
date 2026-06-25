@@ -48,6 +48,6 @@ void touch_init(void) {
     };
     gpio_config(&cfg);
 
-    xTaskCreate(touch_task, "touch", 4096, NULL, 5, &g_touch_task_handle);
+    xTaskCreate(touch_task, "touch", 3072, NULL, 5, &g_touch_task_handle);
     ESP_LOGI(TAG, "init GPIO%d", TOUCH_GPIO);
 }
